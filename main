@@ -1,0 +1,38 @@
+$apps = @(
+    "Microsoft.XboxApp",
+    "Microsoft.Xbox.TCUI",
+    "Microsoft.XboxGameOverlay",
+    "Microsoft.XboxIdentityProvider",
+    "Microsoft.XboxSpeechToTextOverlay",
+    "Microsoft.WindowsCommunicationsApps",
+    "Microsoft.3DBuilder",
+    "Microsoft.Getstarted",
+    "Microsoft.MicrosoftSolitaireCollection"
+)
+
+foreach ($app in $apps) {
+    Get-AppxPackage -AllUsers -Name $app -ErrorAction SilentlyContinue | Remove-AppxPackage -AllUsers -ErrorAction SilentlyContinue
+}
+
+$shortcutPath = Join-Path $env:USERPROFILE "Desktop\Edge Low RAM.lnk"
+$shell = New-Object -ComObject WScript.Shell
+$shortcut = $shell.CreateShortcut($shortcutPath)
+$shortcut.TargetPath = "msedge.exe"
+$shortcut.Arguments = "--disable-gpu --disable-background-networking --disable-background-timer-throttling --disable-renderer-backgrounding --disable-features=TranslateUI --disk-cache-size=10485760"
+$shortcut.Save()
+
+$localState = Join-Path $env:LOCALAPPDATA "Microsoft\Edge\User Data\Local State"
+if (Test-Path $localState) {
+    $json = Get-Content $localState -Raw | ConvertFrom-Json
+    if (-not $json.PSObject.Properties.Name -contains "hardware_acceleration_mode") {
+        $json | Add-Member -MemberType NoteProperty -Name "hardware_acceleration_mode" -Value @{enabled=$false}
+    } else {
+        $json.hardware_acceleration_mode.enabled = $false
+    }
+    if (-not $json.PSObject.Properties.Name -contains "background_mode") {
+        $json | Add-Member -MemberType NoteProperty -Name "background_mode" -Value @{enabled=$false}
+    } else {
+        $json.background_mode.enabled = $false
+    }
+    $json | ConvertTo-Json -Depth 10 | Set-Content $localState -Encoding UTF8
+}
